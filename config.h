@@ -17,11 +17,3 @@
 char header[HDDR_SIZE] = {"Nantyderry Junction"};
 
 
-// ALL Touch panels and wiring is DIFFERENT.  The touch screen needs to be calibrated
-// See the README files for how to run the calibration routine and
-// copy-paste results from TouchScreen_Calibr_native.ino into the lines below.
-// These settings are for the McuFriend 2.8" shield in Portrait tft.screenRotaion(0)
-
-const byte XP = 7, XM = A1, YP = A2, YM = 6;
-const int TS_LEFT=899,TS_RT=122,TS_TOP=100,TS_BOT=898;
-

@@ -2,16 +2,16 @@
 /*
  * Fast Clock Version 3.0
  * Colin H Murdoch - December 2022
- * 
+ *
  * Modified December 2022
  * Amended to operate in conjuction with DCC-EX and pass clock time values over I2C
  * to allow time based operation of EXRAIL commands.
- * 
+ *
  * Based on the original Written by Jim Gifford June 2017
  * COPYRIGHT © 2017 Jim Gifford
  * http://www.hallettcovesouthern.com/ - The website for my Layout
  * http://halletcovesouthern.blogspot.com.au - The Construction & Activities Blog
- * 
+ *
  * Provided under a Creative Commons Attribution, Non-Commercial Share Alike,3.0 Unported License
  *
  * This version modified by Colin H Murdoch - March 2022
@@ -25,13 +25,13 @@
  * be adjusted to 1, 2, 4, 6, 8, 12 or 30.  A reset function has been included. When ready to commence
  * operation the start/pause button is pressed.  the oroginal buttons have been replaced with on-screen buttons
  * set up using the Adafruit_GFX graphics library.
- * 
- * The system can now use the EEPROM to hold the time value.  If Button 2 (Save) is prwssed, the clock is halted 
+ *
+ * The system can now use the EEPROM to hold the time value.  If Button 2 (Save) is prwssed, the clock is halted
  * and the values are saved to EEPROM.  on restart the clock loads up this time.  This can be overwritten
  * * with the Reset button.
- * 
+ *
  * On screen buttons.
- * 
+ *
  * Button 1   - Start/Pause
  * Button 2   - Save
  * Button 3   - Reset
@@ -39,100 +39,33 @@
  * Button 5   - -Time
  * Button 6   - Reset
  *
- * 
+ *
  */
 
 
-#include "EX-Fast_Clock.h"
+#include "EX-FastClock.h"
 //#include "stdio.h"
+
+#include "Nextion.h"
+NexText t0 = NexText(0, 1, "t0");
+NexText t1 = NexText(0, 2, "t1");
+NexText t2 = NexText(0, 3, "t2");
+
 
 // only load the wire library if we transmit to CS
 #ifdef SEND_VIA_I2C
     #include <Wire.h>
 #endif
 
-MCUFRIEND_kbv tft;  // set up a tft instance with the MCUFRIEND drivers
-
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
-
-// Load the special font for the clock display - 24 point wont load
-// This is a converted Arial Truetype font with characters 0 - 9 & :
-#include <Fonts/Arial48pt7b.h>
-#include <Fonts/Arial9pt7b.h>
-
-//void showmsgXY(byte x, byte y, byte sz, char colour, const char *msg)
-void showmsgXY(byte x, byte y, byte sz, char colour, char *msg)
-{
-    tft.setFont();
-    tft.setFont(&Arial9pt7b);
-    tft.setCursor(x, y);
-    tft.setTextColor(colour);
-    tft.setTextSize(sz);
-    tft.print(msg);
-    delay(10);
-}
-
-void TFT_Begin()
-{
-
-    uint16_t ID = tft.readID();
-    // Serial.print("TFT ID = 0x");
-    // Serial.println(ID, HEX);
-    // Serial.println("Calibrate for your Touch Panel");
-    if (ID == 0xD3D3) ID = 0x9486; // write-only shield
-
-    tft.begin(ID);
-  
-    tft.setRotation(0);           //PORTRAIT
-
-    tft.fillScreen(BLACK);
-    showmsgXY(1, 15, 1, YELLOW, header);
-    tft.drawFastHLine(0, 18, tft.width(), WHITE);
-  
-
-}
-
-
-void DrawButtons()
-{
-
-    tft.setFont();  // Set the default font
-
-    //Serial.println("Defining Buttons");
-    key[0].initButton(&tft,  40, 220, 70, 40, WHITE, GREEN, WHITE, "Start", 2);
-    
-    key[1].initButton(&tft,  120, 220, 70, 40, WHITE, RED, WHITE, "Save", 2);
-    
-    key[2].initButton(&tft,  200, 220, 70, 40, WHITE, CYAN, BLACK, "Reset", 2);
-    
-    key[3].initButton(&tft,  40, 270, 70, 40, WHITE, CYAN, BLACK, "T+", 2);
-    
-    key[4].initButton(&tft,  120, 270, 70, 40, WHITE, CYAN, BLACK, "T-", 2);
-    
-    key[5].initButton(&tft,  200, 270, 70, 40, WHITE, CYAN, BLACK, "Rate", 2); 
-    
-
-    for (byte x = 0; x < 6; x++) {
-      key[x].drawButton(false);
-      delay(10);    // Seem to need a slight pause
-    }
-  
-} 
-
+int buttons[6] = {22,23,24,25,26,27};
+int buttonState;
+int lastButtonState = LOW;
+unsigned long lastDebounceTime = 0UL;
 
 void printClock(char *Msg)
 {
-    
-    tft.setFont(&Arial48pt7b);
-    
-    tft.setTextColor(MAGENTA);
-    tft.setTextSize(1);
-    tft.fillRect(1, 30, 235, 90, BLACK);
-    tft.setCursor(1,100);
-    
-    tft.print(Msg);
-    
-    tft.drawFastHLine(0, 120, tft.width(), WHITE);
+
+    t0.setText(Msg);
 
 }
 
@@ -140,49 +73,7 @@ void printText(char *Msg)
 {
     //Serial.println(Msg);
 
-     tft.fillRect(1, 170, 318, 30, BLACK);
-     tft.setCursor(15, 170);
-    tft.setFont();
-    tft.setTextColor(YELLOW);
-    tft.setTextSize(2);
-    tft.print(Msg);
-    delay(10);
-}
-
-bool Touch_getXY(void)
-{
-    TSPoint p = ts.getPoint();
-    pinMode(YP, OUTPUT);      //restore shared pins
-    pinMode(XM, OUTPUT);
-    digitalWrite(YP, HIGH);   //because TFT control pins
-    digitalWrite(XM, HIGH);
-    bool pressed = (p.z > MINPRESSURE && p.z < MAXPRESSURE);
-    if (pressed) {
-        pixel_x = map(p.x, TS_LEFT, TS_RT, 0, tft.width()); //.kbv makes sense to me
-        pixel_y = map(p.y, TS_TOP, TS_BOT, 0, tft.height());
-    }
-    return pressed;
-}
-
-
-void CheckButtons()
-{
-
-    tft.setFont();
-
-    bool down = Touch_getXY();
-
-    for (uint8_t b = 0; b < 6; b++){
-      key[b].press(down && key[b].contains(pixel_x, pixel_y));
-      if (key[b].justReleased())
-          key[b].drawButton();
-      if (key[b].justPressed()) {
-          key[b].drawButton(true);
-          ButtonPressed = b + 1;
-          delay(debounceDelay);
-      }
-    }
-  
+    t1.setText(Msg);
 }
 
 #ifdef SEND_VIA_SERIAL
@@ -203,22 +94,22 @@ void TimeCheck() {
 
   HH = ((startTime + runTime) / milPerHr) ;
 
-    if (HH >= 24) 
+    if (HH >= 24)
         {
           HD = (HH / 24);
-          HH = (HH - (24 * HD)); 
-        }     
- 
-        
-      MM = ((startTime + runTime) % milPerHr) / milPerMin;
-
-    if (MM > 59) 
-        {
-          MH = (MM / 60);
-          MM = (MM - ( 60 * MH)); 
+          HH = (HH - (24 * HD));
         }
 
-  
+
+      MM = ((startTime + runTime) % milPerHr) / milPerMin;
+
+    if (MM > 59)
+        {
+          MH = (MM / 60);
+          MM = (MM - ( 60 * MH));
+        }
+
+
     message[0] = '0' + HH/10;
     message[1] = '0' + HH%10;
     message[2] = ':';
@@ -232,31 +123,29 @@ void CheckClockTime() {
 
 //Serial.println("Clock Tick");
 
-  if (currentMillis - lastMillis >= milPerSec) {  // cycle every second  
-  
+  if (currentMillis - lastMillis >= milPerSec) {  // cycle every second
+
     runTime = runTime + (clockSpeed * milPerSec);
-      
+
     TimeCheck();
-    
+
   lastMillis = currentMillis;
 
   if (MM != LastMinutes){
     LastMinutes = MM;
 
-    printClock(message);  
+    printClock(message);
 
     #ifdef SEND_VIA_SERIAL
       SendTime(HH, MM, clockSpeed);
-    #endif  
+    #endif
   }
-  
+
   }
 
 }
 
 void PauseClock() {
-
-tft.setFont();
 
 pausePlay = !pausePlay;
 
@@ -265,23 +154,18 @@ pausePlay = !pausePlay;
 
 if (pausePlay == true)                   //  Clock paused
       {
-     
-        showmsgXY(55, 160, 2, YELLOW, "PAUSED");
-        tft.setFont();
-        key[0].initButton(&tft,  40, 220, 70, 40, WHITE, GREEN, WHITE, "Start", 2);
-        key[0].drawButton(false);
-      }   
 
-else  
+        t1.setText("PAUSED");
+
+      }
+
+else
     {
-        tft.setFont();
-        tft.fillRect(1, 135, 235, 30, BLACK);
-        key[0].initButton(&tft,  40, 220, 70, 40, WHITE, CYAN, BLACK, "Pause", 2);
-        key[0].drawButton(false);
-    
+        t1.setText("");
+
         #ifdef SEND_VIA_SERIAL
           //SendTime(HH, MM, clockSpeed);
-        #endif  
+        #endif
     }
 
 }
@@ -312,8 +196,8 @@ void AdjustTime(byte OPT){
           default:
             break;
         }
-          
-    
+
+
         TimeCheck();
 
 
@@ -321,7 +205,7 @@ void AdjustTime(byte OPT){
 
           #ifdef SEND_VIA_SERIAL
             //SendTime(HH, MM, clockSpeed);
-          #endif  
+          #endif
 
 }
 
@@ -338,10 +222,7 @@ void displaySpeed(byte x) {
       message[9] = '0' + clockSpeed%10;
       message[10] = 0;
     }
-
-    tft.fillRect(10, 170, 240, 22, BLACK);
-    showmsgXY(10, 190, 1, YELLOW, message);
-   
+    t2.setText(message);
 }
 
 
@@ -370,7 +251,7 @@ void ResetAll(){
      PauseClock();
     }
 
-    startTime = 21600000;              //  default start time 06:00  
+    startTime = 21600000;              //  default start time 06:00
     counter = 2;                       //  initial clock speed 4:1
     runTime = 0;                       //  Reset run time
     LastMinutes = 99;
@@ -378,7 +259,7 @@ void ResetAll(){
     displaySpeed(counter);
 
     CheckClockTime();           // display the time
-  
+
 
 }
 
@@ -395,8 +276,6 @@ void SaveTime(){
     int eeAddress = 0;
 
     EEPROM.put(eeAddress, PauseTime);
-    tft.fillRect(1, 135, 235, 30, BLACK);
-    showmsgXY(55, 160, 2, YELLOW, "SAVED");
 
 }
 
@@ -415,18 +294,10 @@ void GetSavedTime(){
       // not valid so set defaults.  Either first use or EEPROM corrupt
         startTime = 21600000;           //  default start time 06:00
         clockSpeed = 4;                 //  initial clock speed 4:1
-    
+
     }
 
     lastMillis = millis();          //  first reference reading of arduino O/S
-
-}
-
-
-void PrintButton(){
-
-  //Serial.print("Button :");
-  //Serial.println(ButtonPressed);
 
 }
 
@@ -436,19 +307,19 @@ void TransmitTime() {
         // send the time as <mmmm> as two bytes followed by clockspeed
         int timetosend = (HH * 60) + MM;
         byte TimeArray[2];
-      
+
         TimeArray[0] = (timetosend >> 8);
         TimeArray[1] = timetosend & 0xFF;
         Wire.write(TimeArray, 2);
-        
+
         Wire.write(clockSpeed);
-        
+
 }
 #endif
 
 
 
-void setup() 
+void setup()
 {
 
   #ifdef SEND_VIA_SERIAL
@@ -465,12 +336,14 @@ void setup()
     Wire.onRequest(TransmitTime);
   #endif
 
+  nexInit();
+
+  for (int i=0; i<6; i++) {
+    pinMode(buttons[i],INPUT_PULLUP);
+  }
+
   currentMillis = millis();
 
-  TFT_Begin();
-    
-  DrawButtons();
- 
   GetSavedTime();               // Read the EEPROM
 
   displaySpeed(counter);
@@ -478,7 +351,7 @@ void setup()
   CheckClockTime();
 
   pausePlay = true;
-  showmsgXY(50, 160, 2, YELLOW, "PAUSED");
+  t1.setText("PAUSED");
 
   //Serial.println("Setup Finished");
 
@@ -487,55 +360,62 @@ void setup()
 
 
 
-void loop() 
+void loop()
 {
-  
+
   if (pausePlay == false){
     CheckClockTime();
   }
 
-  CheckButtons();
+  for (int i=0; i<6; i++) {
+    int reading = digitalRead(buttons[i]);
+    if (reading != lastButtonState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+    }
 
-  
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading != buttonState) {
+      buttonState = reading;
+      if (buttonState == LOW) {
+        ButtonPressed = (i+1);
+      }
+    }
+    }
+    lastButtonState = reading;
+  }
 
   switch (ButtonPressed){
-      
-    
+
+
 
     case 1:
         PauseClock();
-        PrintButton();
-
       break;
-        
+
     case 2:
         SaveTime();
-        PrintButton();
       break;
 
     case 3:
-        
+
         ResetAll();
-        PrintButton();
       break;
 
     case 4:
         AdjustTime(1); // add time
-        PrintButton();
       break;
 
     case 5:
         AdjustTime(2); // deduct time
-        PrintButton();
       break;
 
     case 6:
         AlterRate();
-        PrintButton();
       break;
 
   }
-    
+
     ButtonPressed = 0;
     currentMillis = millis();
 
