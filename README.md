@@ -3,7 +3,7 @@
 
 An Adjustable Speed Model Railway Fast Clock which integrates with the DCC-EX Command Station.
 
-copied from https://github.com/DCC-EX/EX-FastClock so that i can modify to work with a Nextion TFT screen.
+TJF: copied from https://github.com/DCC-EX/EX-FastClock so that i can modify to work with a Nextion TFT screen.
 
 
 
