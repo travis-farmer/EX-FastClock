@@ -60,9 +60,9 @@ LiquidCrystal_I2C lcd(0x27,40,2);
 #endif
 
 int buttons[7] = {22,23,24,25,26,27,28};
-int buttonState;
-int lastButtonState = HIGH;
-unsigned long lastDebounceTime = 0UL;
+int buttonState[7];
+int lastButtonState[7] = {HIGH,HIGH,HIGH,HIGH,HIGH,HIGH,HIGH};
+unsigned long lastDebounceTime[7] = {0UL,0UL,0UL,0UL,0UL,0UL,0UL};
 
 bool drawDots = false;
 
@@ -371,20 +371,20 @@ void loop()
 
   for (int i=0; i<7; i++) {
     int reading = digitalRead(buttons[i]);
-    if (reading != lastButtonState) {
+    if (reading != lastButtonState[i]) {
     // reset the debouncing timer
-    lastDebounceTime = millis();
+    lastDebounceTime[i] = millis();
     }
 
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading != buttonState) {
-      buttonState = reading;
-      if (buttonState == LOW) {
+    if ((millis() - lastDebounceTime[i]) > debounceDelay) {
+    if (reading != buttonState[i]) {
+      buttonState[i] = reading;
+      if (buttonState[i] == LOW) {
         ButtonPressed = (i+1);
       }
     }
     }
-    lastButtonState = reading;
+    lastButtonState[i] = reading;
   }
 
   switch (ButtonPressed){
