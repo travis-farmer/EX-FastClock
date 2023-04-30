@@ -59,9 +59,9 @@ LiquidCrystal_I2C lcd(0x27,40,2);
     #include <Wire.h>
 #endif
 
-int buttons[6] = {22,23,24,25,26,27};
+int buttons[7] = {22,23,24,25,26,27,28};
 int buttonState;
-int lastButtonState = LOW;
+int lastButtonState = HIGH;
 unsigned long lastDebounceTime = 0UL;
 
 bool drawDots = false;
@@ -77,7 +77,7 @@ void printClock()
 
     char buffer[6];
     lcd.setCursor(0,0);
-    sprintf(buffer, "%d:%d", HH, MM);
+    sprintf(buffer, "%02d:%02d", HH, MM);
     lcd.print(buffer);
 
 }
@@ -323,7 +323,8 @@ void TransmitTime() {
 
 void setup()
 {
-
+  lcd.init();                      // initialize the lcd
+  lcd.backlight();
   #ifdef SEND_VIA_SERIAL
     Serial.begin(115200);
     while (!Serial) {
@@ -340,7 +341,7 @@ void setup()
 
   matrix.begin(0x70);
 
-  for (int i=0; i<6; i++) {
+  for (int i=0; i<7; i++) {
     pinMode(buttons[i],INPUT_PULLUP);
   }
 
@@ -352,8 +353,8 @@ void setup()
 
   CheckClockTime();
 
-  pausePlay = true;
-  printText("PAUSED");
+  pausePlay = false;
+  printText("     ");
   //Serial.println("Setup Finished");
 
 }
@@ -368,7 +369,7 @@ void loop()
     CheckClockTime();
   }
 
-  for (int i=0; i<6; i++) {
+  for (int i=0; i<7; i++) {
     int reading = digitalRead(buttons[i]);
     if (reading != lastButtonState) {
     // reset the debouncing timer
