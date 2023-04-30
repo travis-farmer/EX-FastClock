@@ -46,11 +46,13 @@
 #include "EX-FastClock.h"
 //#include "stdio.h"
 
-#include "Nextion.h"
-NexText t0 = NexText(0, 1, "t0"); //clock
-NexText t1 = NexText(0, 2, "t1"); //messages
-NexText t2 = NexText(0, 3, "t2"); //speed
+#include <Wire.h> // Enable this line if using Arduino Uno, Mega, etc.
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
+#include <LiquidCrystal_I2C.h>
 
+Adafruit_7segment matrix = Adafruit_7segment();
+LiquidCrystal_I2C lcd(0x27,40,2);
 
 // only load the wire library if we transmit to CS
 #ifdef SEND_VIA_I2C
@@ -62,18 +64,30 @@ int buttonState;
 int lastButtonState = LOW;
 unsigned long lastDebounceTime = 0UL;
 
-void printClock(char *Msg)
+bool drawDots = false;
+
+void printClock()
 {
 
-    t0.setText(Msg);
+    matrix.writeDigitNum(0, (HH/10), drawDots);
+    matrix.writeDigitNum(1, (HH%10), drawDots);
+    matrix.drawColon(drawDots);
+    matrix.writeDigitNum(3, (MM/10), drawDots);
+    matrix.writeDigitNum(4, (MM%10), drawDots);
+
+    char buffer[6];
+    lcd.setCursor(0,0);
+    sprintf(buffer, "%d:%d", HH, MM);
+    lcd.print(buffer);
 
 }
 
 void printText(char *Msg)
 {
-    //Serial.println(Msg);
+    lcd.setCursor(10,0);
+    lcd.print(Msg);
 
-    t1.setText(Msg);
+
 }
 
 #ifdef SEND_VIA_SERIAL
@@ -109,14 +123,6 @@ void TimeCheck() {
           MM = (MM - ( 60 * MH));
         }
 
-
-    message[0] = '0' + HH/10;
-    message[1] = '0' + HH%10;
-    message[2] = ':';
-    message[3] = '0' + MM/10;
-    message[4] = '0' + MM%10;
-    message[5] = 0;
-
 }
 
 void CheckClockTime() {
@@ -134,7 +140,7 @@ void CheckClockTime() {
   if (MM != LastMinutes){
     LastMinutes = MM;
 
-    printClock(message);
+    printClock();
 
     #ifdef SEND_VIA_SERIAL
       SendTime(HH, MM, clockSpeed);
@@ -155,13 +161,15 @@ pausePlay = !pausePlay;
 if (pausePlay == true)                   //  Clock paused
       {
 
-        t1.setText("PAUSED");
+        drawDots = false;
+        printText("PAUSED");
 
       }
 
 else
     {
-        t1.setText("");
+        drawDots = true;
+        printText("      ");
 
         #ifdef SEND_VIA_SERIAL
           //SendTime(HH, MM, clockSpeed);
@@ -201,7 +209,7 @@ void AdjustTime(byte OPT){
         TimeCheck();
 
 
-        printClock(message);
+        printClock();
 
           #ifdef SEND_VIA_SERIAL
             //SendTime(HH, MM, clockSpeed);
@@ -213,16 +221,10 @@ void displaySpeed(byte x) {
 
    clockSpeed = clockSpeeds[x];
 
-    strcpy(message, "Speed = ");
-    if (clockSpeed < 10) {
-      message[8] = '0' + clockSpeed;
-      message[9] = 0;
-    } else{
-      message[8] = '0' + clockSpeed/10;
-      message[9] = '0' + clockSpeed%10;
-      message[10] = 0;
-    }
-    t2.setText(message);
+    lcd.setCursor(0,1);
+    char bufferB[10];
+    sprintf(bufferB, "Speed: %d", clockSpeed);
+    lcd.print(bufferB);
 }
 
 
@@ -336,7 +338,7 @@ void setup()
     Wire.onRequest(TransmitTime);
   #endif
 
-  nexInit();
+  matrix.begin(0x70);
 
   for (int i=0; i<6; i++) {
     pinMode(buttons[i],INPUT_PULLUP);
@@ -351,8 +353,7 @@ void setup()
   CheckClockTime();
 
   pausePlay = true;
-  t1.setText("PAUSED");
-
+  printText("PAUSED");
   //Serial.println("Setup Finished");
 
 }

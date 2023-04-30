@@ -15,12 +15,10 @@ byte clockSpeeds[] = {1, 2, 4, 6, 8, 12, 30};  //  Fast Clock Speeds
 
 // The following line sets the default (startup) speed.
 
-byte clockSpeed = 4;               //  Initial Fast Clock Speed Setting
+byte clockSpeed = 1;               //  Initial Fast Clock Speed Setting
 
 // Global message buffers shared by Serial and Scrolling functions
 #define BUF_SIZE  15
-char message[BUF_SIZE] = {"Hello!"};
-
 
 unsigned long currentMillis = 0;  //  Current Millis value for comparison
 unsigned long lastMillis = 0;     //  Last Millis for comparison
