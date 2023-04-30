@@ -47,9 +47,9 @@
 //#include "stdio.h"
 
 #include "Nextion.h"
-NexText t0 = NexText(0, 1, "t0");
-NexText t1 = NexText(0, 2, "t1");
-NexText t2 = NexText(0, 3, "t2");
+NexText t0 = NexText(0, 1, "t0"); //clock
+NexText t1 = NexText(0, 2, "t1"); //messages
+NexText t2 = NexText(0, 3, "t2"); //speed
 
 
 // only load the wire library if we transmit to CS
