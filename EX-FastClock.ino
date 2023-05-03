@@ -74,6 +74,7 @@ void printClock()
     matrix.drawColon(drawDots);
     matrix.writeDigitNum(3, (MM/10), drawDots);
     matrix.writeDigitNum(4, (MM%10), drawDots);
+    matrix.writeDisplay();
 
     char buffer[6];
     lcd.setCursor(0,0);
@@ -126,7 +127,7 @@ void TimeCheck() {
 }
 
 void CheckClockTime() {
-
+  drawDots = true;
 //Serial.println("Clock Tick");
 
   if (currentMillis - lastMillis >= milPerSec) {  // cycle every second
