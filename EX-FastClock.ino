@@ -59,7 +59,7 @@ LiquidCrystal_I2C lcd(0x27,40,2);
     #include <Wire.h>
 #endif
 
-int buttons[7] = {22,23,24,25,26,27,28};
+int buttons[7] = {2,3,4,5,6,7,8};
 int buttonState[7];
 int lastButtonState[7] = {HIGH,HIGH,HIGH,HIGH,HIGH,HIGH,HIGH};
 unsigned long lastDebounceTime[7] = {0UL,0UL,0UL,0UL,0UL,0UL,0UL};
@@ -68,7 +68,11 @@ bool drawDots = false;
 
 void printClock()
 {
-
+/*
+    setBrightness(brightness)- will let you change the overall brightness of the entire display. 0 is least bright, 15 is brightest and is what is initialized by the display when you start
+    blinkRate(rate) - You can blink the entire display. 0 is no blinking. 1, 2 or 3 is for display blinking.
+*/
+    matrix.setBrightness(4);
     matrix.writeDigitNum(0, (HH/10), drawDots);
     matrix.writeDigitNum(1, (HH%10), drawDots);
     matrix.drawColon(drawDots);
@@ -171,6 +175,7 @@ else
     {
         drawDots = true;
         printText("      ");
+
 
         #ifdef SEND_VIA_SERIAL
           //SendTime(HH, MM, clockSpeed);
@@ -368,6 +373,8 @@ void loop()
 
   if (pausePlay == false){
     CheckClockTime();
+  } else {
+    printClock();
   }
 
   for (int i=0; i<7; i++) {
